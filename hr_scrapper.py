@@ -36,11 +36,12 @@ class HR_Scrapper:
             models = tracks['models']
             for challenge in models:
                 chal_slug = challenge.get('slug')
-                sub_domain = challenge.get('track').get('slug')  # Still needed for file path
+                sub_domain = challenge.get('track').get('slug') #Keep for file path
                 if chal_slug is None:
                     raise Exception("Chal_slug:" + str(chal_slug))
 
-                sub_domain_string = "Domain: " + sub_domain
+                # --- No filtering by sub-domain ---
+                sub_domain_string = "Domain: " + sub_domain  # Keep for printing
                 print(track + " " + sub_domain_string + chal_slug.rjust(70 - len(sub_domain_string)))
 
                 for sub_id in self.get_all_submissions(chal_slug):
@@ -48,11 +49,11 @@ class HR_Scrapper:
                     if sub_id:
                         result = self.get_code(chal_slug, sub_id)
                         code = result['code']
-                        lang = result['language']  # Still needed for file extension
+                        lang = result['language']
 
                     if code:
-                        ext = get_file_extension(track, lang) #track should be sql
-                        self.create_code_file(track, sub_domain, chal_slug, code, ext)
+                        ext = get_file_extension(track, lang)
+                        self.create_code_file(track, sub_domain, chal_slug, code, ext) # Keep sub_domain
         except requests.exceptions.RequestException as e:
             print(f"Request failed for {track}: {e}")
         except json.JSONDecodeError as e:
@@ -60,7 +61,6 @@ class HR_Scrapper:
             print(f"Response content: {response.text}")
         finally:
             time.sleep(self.base_delay)
-
 
     def get_all_submissions(self, chal_slug):
         """Gets all submissions for a given challenge, handling pagination."""
@@ -124,6 +124,7 @@ class HR_Scrapper:
                 print(code, file=open(file_path, 'w'))
         else:
             print(code, file=open(file_path, 'w'))
+
 
     def get_track_url(self, track_name):
         return f"{BASE_URL}tracks/{track_name}/challenges?"
