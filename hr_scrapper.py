@@ -1,17 +1,18 @@
+# hr_scrapper.py  (Option 1 - Keeping URL methods in HR_Scrapper)
 import requests
-from urls_service import UrlService  # Keep your UrlService
+from urls_service import UrlService  # Keep your UrlService, even if not used for now
 from credentials import CSRF_TOKEN, COOKIE  # Keep your credentials
 import json
 import time
 import os  # Import os for file handling
 from util import get_file_extension  # Keep your utility functions
 from models import get_code_result_model #keep your models
-from constants import BASE_DIR # Keep your contants
+from constants import BASE_DIR, BASE_URL # Keep your contants
 
 
 class HR_Scrapper:
     def __init__(self, base_delay=2):
-        self.url_service = UrlService.instance()  # Use your UrlService
+        self.url_service = UrlService.instance()  # Keep, but not used for now
         self.headers = {
             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36",
             "Cookie": COOKIE,
@@ -24,12 +25,12 @@ class HR_Scrapper:
         self.PREFIX = "__" # Your prefix
 
     def get_track(self, track):
-        # --- INTEGRATE YOUR LOGIC HERE ---
-        url = self.url_service.get_track_url(track) # Get the Track URL
+        # --- Use the HR_Scrapper's own methods ---
+        url = self.get_track_url(track)  # Call HR_Scrapper's method
         try:
-            response = requests.get(url, headers=self.headers) # Make the request with headers
-            response.raise_for_status()  # Raise HTTPError for bad responses (4xx or 5xx)
-            tracks = response.json()  # Use .json() for parsing
+            response = requests.get(url, headers=self.headers)
+            response.raise_for_status()
+            tracks = response.json()
             models = tracks['models']
             for i in models:
                 chal_slug = i.get('slug')
@@ -40,16 +41,16 @@ class HR_Scrapper:
                 sub_domain_string = "Domain: " + sub_domain
                 print(track + " " + sub_domain_string + chal_slug.rjust(70 - len(sub_domain_string)))
 
-                sub_id = self.get_submissions(chal_slug)  # Call your get_submissions method
+                sub_id = self.get_submissions(chal_slug)  # Call HR_Scrapper's get_submissions
                 code = False
                 if sub_id:
-                    result = self.get_code(chal_slug, sub_id)  # Call your get_code method
+                    result = self.get_code(chal_slug, sub_id)  # Call HR_Scrapper's get_code
                     code = result['code']
                     lang = result['language']
 
                 if code:
                     ext = get_file_extension(track, lang)
-                    self.create_code_file(track, sub_domain, chal_slug, code, ext) #Call create_code_file
+                    self.create_code_file(track, sub_domain, chal_slug, code, ext)
         except requests.exceptions.RequestException as e:
             print(f"Request failed for {track}: {e}")
         except json.JSONDecodeError as e:
@@ -58,13 +59,10 @@ class HR_Scrapper:
         finally:
             time.sleep(self.base_delay)
 
-    # --- KEEP YOUR OTHER METHODS (with modifications for headers)---
-
     def get_submissions(self, chal_slug):
-        # Add headers to this request as well
-        url = self.url_service.get_submissions_url(chal_slug) #get submission url
+        url = self.get_submissions_url(chal_slug) # Call HR_Scrapper's method
         try:
-            submissions = requests.get(url, headers=self.headers) #get request adding headers
+            submissions = requests.get(url, headers=self.headers)
             submissions.raise_for_status()
             models = submissions.json()['models']
             if len(models) > 0:
@@ -81,10 +79,9 @@ class HR_Scrapper:
             return False
 
     def get_code(self, chal_slug, sub_id):
-        # And here
-        url = self.url_service.get_particular_submission_url(chal_slug, sub_id)  #get submission url
+        url = self.get_particular_submission_url(chal_slug, sub_id) # Call HR_Scrapper's method
         try:
-            code_res = requests.get(url, headers=self.headers)  #get request adding headers
+            code_res = requests.get(url, headers=self.headers)
             code_res.raise_for_status()
             model = code_res.json()['model']
             code = model['code']
@@ -95,30 +92,29 @@ class HR_Scrapper:
             return result
         except requests.exceptions.RequestException as e:
             print(f"Request failed in get_code for {chal_slug}, sub_id {sub_id}: {e}")
-            return {'code': None, 'language': None}  # Return None values on error
+            return {'code': None, 'language': None}
         except json.JSONDecodeError as e:
             print(f"JSON Decode Error in get_code for {chal_slug}, sub_id {sub_id}: {e}")
             print(f"Response content: {code_res.text}")
             return {'code': None, 'language': None}
 
     def create_code_file(self, track, sub_domain, filename, code, ext):
-        # This method stays mostly the same, it's your original logic
         dir = os.path.join(BASE_DIR, self.PREFIX + track, sub_domain)
         file_path = os.path.join(dir, filename + ext)
 
-        if not os.path.exists(dir):  # os.path.isdir(dir):
+        if not os.path.exists(dir):
             os.makedirs(dir)
             if not os.path.isfile(file_path):
                 print(code, file=open(file_path, 'w'))
         else:
             print(code, file=open(file_path, 'w'))
 
-    # Add url methods
+    # --- Keep your original URL methods HERE ---
     def get_track_url(self, track_name):
-        return f"https://www.hackerrank.com/rest/contests/master/tracks/{track_name}/challenges?"
+        return f"{BASE_URL}tracks/{track_name}/challenges?"
 
     def get_submissions_url(self, chal_slug):
-        return f"https://www.hackerrank.com/rest/contests/master/challenges/{chal_slug}/submissions?"
+        return f"{BASE_URL}challenges/{chal_slug}/submissions?"
 
     def get_particular_submission_url(self, chal_slug, sub_id):
-        return f"https://www.hackerrank.com/rest/contests/master/challenges/{chal_slug}/submissions/{sub_id}"
+        return f"{BASE_URL}challenges/{chal_slug}/submissions/{sub_id}"
