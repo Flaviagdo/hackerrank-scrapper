@@ -24,31 +24,34 @@ class HR_Scrapper:
         self.PREFIX = "__"
 
     def get_track(self, track):
-        url = self.get_track_url(track)  # Use HR_Scrapper's methods
+        # --- Only process the SQL track ---
+        if track != "sql":
+            return
+
+        url = self.get_track_url(track)
         try:
             response = requests.get(url, headers=self.headers)
             response.raise_for_status()
             tracks = response.json()
             models = tracks['models']
-            for challenge in models:  # Iterate through each challenge
+            for challenge in models:
                 chal_slug = challenge.get('slug')
-                sub_domain = challenge.get('track').get('slug')
+                sub_domain = challenge.get('track').get('slug')  # Still needed for file path
                 if chal_slug is None:
                     raise Exception("Chal_slug:" + str(chal_slug))
 
                 sub_domain_string = "Domain: " + sub_domain
                 print(track + " " + sub_domain_string + chal_slug.rjust(70 - len(sub_domain_string)))
 
-                # Get ALL submissions for the current challenge (using pagination)
                 for sub_id in self.get_all_submissions(chal_slug):
                     code = False
                     if sub_id:
                         result = self.get_code(chal_slug, sub_id)
                         code = result['code']
-                        lang = result['language']
+                        lang = result['language']  # Still needed for file extension
 
                     if code:
-                        ext = get_file_extension(track, lang)
+                        ext = get_file_extension(track, lang) #track should be sql
                         self.create_code_file(track, sub_domain, chal_slug, code, ext)
         except requests.exceptions.RequestException as e:
             print(f"Request failed for {track}: {e}")
@@ -58,34 +61,35 @@ class HR_Scrapper:
         finally:
             time.sleep(self.base_delay)
 
+
     def get_all_submissions(self, chal_slug):
         """Gets all submissions for a given challenge, handling pagination."""
         all_submission_ids = []
         offset = 0
         limit = 20  # Or whatever the API's limit is
         while True:
-            url = self.get_submissions_url(chal_slug, offset, limit)  # Modified get_submissions_url
+            url = self.get_submissions_url(chal_slug, offset, limit)
             try:
                 submissions = requests.get(url, headers=self.headers)
                 submissions.raise_for_status()
                 data = submissions.json()
                 models = data['models']
 
-                if not models:  # No more submissions
+                if not models:
                     break
 
                 for submission in models:
                     all_submission_ids.append(submission['id'])
 
-                offset += limit  # Increment offset for the next page
+                offset += limit
 
             except requests.exceptions.RequestException as e:
                 print(f"Request failed in get_all_submissions for {chal_slug}: {e}")
-                break  # Stop if there's a request error
+                break
             except json.JSONDecodeError as e:
                 print(f"JSON Decode Error in get_all_submissions for {chal_slug}: {e}")
                 print(f"Response content: {submissions.text}")
-                break  # Stop if there's a JSON error
+                break
             finally:
                 time.sleep(self.base_delay)
         return all_submission_ids
@@ -121,13 +125,10 @@ class HR_Scrapper:
         else:
             print(code, file=open(file_path, 'w'))
 
-
-    # --- URL methods (Modified for pagination) ---
     def get_track_url(self, track_name):
         return f"{BASE_URL}tracks/{track_name}/challenges?"
 
     def get_submissions_url(self, chal_slug, offset=0, limit=20):
-        # Include offset and limit in the URL
         return f"{BASE_URL}challenges/{chal_slug}/submissions?offset={offset}&limit={limit}"
 
     def get_particular_submission_url(self, chal_slug, sub_id):
