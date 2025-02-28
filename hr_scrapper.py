@@ -11,7 +11,7 @@ from constants import BASE_DIR # Keep your contants
 
 class HR_Scrapper:
     def __init__(self, base_delay=2):
-        self.url_service = UrlService()  # Use your UrlService
+        self.url_service = UrlService.instance()  # Use your UrlService
         self.headers = {
             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36",
             "Cookie": COOKIE,
